@@ -6,6 +6,7 @@ rm -rf dep && mkdir -p dep
 git clone https://github.com/SoftSec-KAIST/BinKit $BINKIT_ROOT
 
 cp scripts/env.sh $BINKIT_ROOT/scripts/env.sh
+cp scripts/setup_clang.sh $BINKIT_ROOT/scripts/setup_clang.sh
 
 source $BINKIT_ROOT/scripts/env.sh
 $BINKIT_ROOT/scripts/install_default_deps.sh
