@@ -21,7 +21,27 @@ OPTIONS=""
 EXTRA_CFLAGS=""
 EXTRA_LDFLAGS=""
 
-if [ $# -eq 0 ]; then ARCH="x86_64"; else ARCH=$1; fi
+argc="$#"
+argv1="$1"
+argv2="$2"
+
+COMPILER="gcc"
+ARCH="x86_64"
+
+if [ "$argc" -eq 1 ]; then
+    COMPILER="$argv1"
+elif [ "$argc" -eq 2 ]; then
+    COMPILER="$argv1"
+    ARCH="$argv2"
+fi
+
+if [[ $COMPILER != "gcc" && $COMPILER != "clang" ]]; then
+    echo "[-] usage: ./build_pair compiler arch"
+    exit 0
+fi
+
+echo "[*] Compiler: $COMPILER"
+echo "[*] Arch: $ARCH"
 
 if [ $ARCH == "x86_32" ]; then
   ARCH_PREFIX=$ARCH_X86
@@ -52,11 +72,11 @@ elif [ $ARCH == "mips_64" ]; then
   ARCHTYPE="MIPS, MIPS64"
 fi
 
-cd $BASE_PATH
-make clean >/dev/null && make distclean >/dev/null
-
-rm -rf $RESULT_PATH && mkdir -p $RESULT_PATH
-rm -rf $BASE_PATH/install && mkdir -p $BASE_PATH/install
+if [[ $COMPILER =~ "clang" ]]; then
+    # fix compiler version for clang
+    COMPVER="8.2.0"
+    export PATH="${TOOL_PATH}/clang/${COMPILER}/bin:${PATH}"
+fi
 
 COMPVER="8.2.0"
 export PATH="${TOOL_PATH}/${ARCH_PREFIX}-${COMPVER}/bin:${PATH}"
@@ -66,93 +86,61 @@ SYSTEM="${TOOL_PATH}/${ARCH_PREFIX}-${COMPVER}/${ARCH_PREFIX}/sysroot/usr/includ
 COMPILER_OPT=""
 COMPILER_OPT+=" -O1"
 
-##! o1 (done)
-# COMPILER_OPT+=" -fschedule-insns -fschedule-insns2" ##! all
+if [[ $COMPILER =~ "gcc" ]]; then
+    CMD=""
+    CMD="--host=\"${ARCH_PREFIX}\""
+    CMD="${CMD} CFLAGS=\""
+    CMD="${CMD} -isysroot ${SYSROOT} -isystem ${SYSTEM} -I${SYSTEM}"
+    CMD="${CMD} ${COMPILER_OPT}"
+    CMD="${CMD} ${OPTIONS}\""
+    CMD="${CMD} LDFLAGS=\"${OPTIONS} ${EXTRA_LDFLAGS}\""
+    CMD="${CMD} AR=\"${ARCH_PREFIX}-gcc-ar\""
+    CMD="${CMD} RANLIB=\"${ARCH_PREFIX}-gcc-ranlib\""
+    CMD="${CMD} NM=\"${ARCH_PREFIX}-gcc-nm\""
+    CMD="${CMD} --disable-gdb --disable-gdbserver --disable-sim"
+elif [[ $COMPILER =~ "clang" ]]; then
+    CMD="--host=\"${ARCH_PREFIX}\""
 
-# COMPILER_OPT+=" -fpeephole2" ##! all
-# COMPILER_OPT+=" -falign-functions -falign-jumps -falign-loops -falign-labels" ##! all
-# COMPILER_OPT+=" -finline-small-functions" ##! all
-# COMPILER_OPT+=" "-freorder-functions" ##! all
-# COMPILER_OPT+=" -foptimize-sibling-calls" ##! all
-# COMPILER_OPT+=" -fcaller-saves" ##! all
+    # ------------------- compile with CC="clang --target=" -----------------
+    # clang needs to compile with this ...
+    # if [[ $CCTARGET == "CCTARGET" ]]; then
+    CMD="${CMD} CC=\"clang --target=${ARCH_PREFIX}"
+    CMD="${CMD} --gcc-toolchain=${TOOL_PATH}/${ARCH_PREFIX}-${COMPVER} \""
+    CMD="${CMD} CFLAGS=\" "
+    CMD="${CMD} -isysroot ${SYSROOT} -isystem ${SYSTEM} -I${SYSTEM}"
+    CMD="${CMD} -foptimization-record-file=opt.txt\""
+    CMD="${CMD} ${COMPILER_OPT}"
+    CMD="${CMD} ${OPTIONS}\""
+    CMD="${CMD} LDFLAGS=\"${OPTIONS} ${EXTRA_LDFLAGS}\""
+    CMD="${CMD} AR=\"llvm-ar\""
+    CMD="${CMD} RANLIB=\"llvm-ranlib\""
+    CMD="${CMD} NM=\"llvm-nm\""
+    CMD="${CMD} --disable-gdb --disable-gdbserver --disable-sim"
+fi
 
-
-# COMPILER_OPT+=" -fno-hoist-adjacent-loads" ##! except elfedit
-# COMPILER_OPT+=" -fcode-hoisting" ##! all
-
-# COMPILER_OPT+=" -fstore-merging" ##! except elfedit
-
-
-
-
-##! o1 (work)
-# COMPILER_OPT+=" -fipa-sra" ##! except elfedit
-# COMPILER_OPT+=" -fipa-ra" ##! all
-
-
-# COMPILER_OPT+=" -fipa-cp" ##! except elfedit
-# COMPILER_OPT+=" -fipa-bit-cp" ##! except elfedit
-# COMPILER_OPT+=" -fipa-icf" ##! except elfedit
-
-# COMPILER_OPT+=" -fipa-vrp" ##! none (if w/ ipa then all)
-
-
-# COMPILER_OPT+=" -frerun-cse-after-loop" ##! all
-# COMPILER_OPT+=" -foptimize-strlen" ##! all
-
-# COMPILER_OPT+=" -fthread-jumps" ##! except elfedit
-# COMPILER_OPT+=" -fcrossjumping" ##! all
-# COMPILER_OPT+=" -fcse-follow-jumps -fcse-skip-blocks" ##! all (-fcse-skip-blocks: none)
-
-# COMPILER_OPT+=" -fexpensive-optimizations" ##! all
-# COMPILER_OPT+=" -fgcse -fgcse-lm" ##! all (-fgcse-lm: none)
-
-
-# COMPILER_OPT+=" -fisolate-erroneous-paths-dereference" ##! except elfedit
-# COMPILER_OPT+=" -flra-remat" ##! except elfedit
-
-# COMPILER_OPT+=" -fpartial-inlining" ##! except elfedit
-# COMPILER_OPT+=" -freorder-blocks-algorithm=stc" ##! all
-# COMPILER_OPT+=" -freorder-blocks-and-partition" ##! none
-
-# COMPILER_OPT+=" -ftree-switch-conversion" ##! except elfedit
-
-# COMPILER_OPT+=" -fstrict-aliasing" ##! except elfedit
-
-# COMPILER_OPT+=" -ftree-pre" ##! all
-# COMPILER_OPT+=" -ftree-vrp" ##! all
-
-##! none
-
-# COMPILER_OPT+=" -fsched-interblock" ##! none (-fschedule-insns on, also none)
-# COMPILER_OPT+=" -fsched-spec" ##! none all arch (-fschedule-insns on, also none)
-# COMPILER_OPT+=" -findirect-inlining" ##! none
-# COMPILER_OPT+=" -fdevirtualize -fdevirtualize-speculatively" ##! none
-# COMPILER_OPT+=" -ftree-tail-merge" ##! none
-# COMPILER_OPT+=" -ftree-builtin-call-dce" ##! none (-ftree on, also none)
-
-CMD=""
-CMD="--host=\"${ARCH_PREFIX}\""
-CMD="${CMD} CFLAGS=\""
-CMD="${CMD} -isysroot ${SYSROOT} -isystem ${SYSTEM} -I${SYSTEM}"
-CMD="${CMD} ${COMPILER_OPT}"
-CMD="${CMD} ${OPTIONS}\""
-CMD="${CMD} LDFLAGS=\"${OPTIONS} ${EXTRA_LDFLAGS}\""
-CMD="${CMD} AR=\"${ARCH_PREFIX}-gcc-ar\""
-CMD="${CMD} RANLIB=\"${ARCH_PREFIX}-gcc-ranlib\""
-CMD="${CMD} NM=\"${ARCH_PREFIX}-gcc-nm\""
-CMD="${CMD} --disable-gdb --disable-gdbserver --disable-sim"
-
+AUTO="autoconf"
 CONF="./configure --prefix=\"${BASE_PATH}/install\" --build=x86_64-linux-gnu ${CMD}"
 MAKE="make -j 8 -l 8"
 INS="make install"
 
+##! clean up
+cd $BASE_PATH
+make clean >/dev/null && make distclean >/dev/null
+
+rm -rf $RESULT_PATH && mkdir -p $RESULT_PATH
+rm -rf $BASE_PATH/install && mkdir -p $BASE_PATH/install
+
+##! autoconf
+if [[ "$COMPILER" -eq "clang" ]]; then
+    eval $AUTO
+fi
+
 ##! configure
-echo "\n[*] CONF: $CONF"
+echo "[*] CONF: $CONF"
 eval $CONF -q >/dev/null
 
 ##! make
-echo "\n[*] MAKE: $MAKE"
+echo "[*] MAKE: $MAKE"
 eval $MAKE >/dev/null
 
 ##! make install
