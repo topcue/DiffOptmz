@@ -84,7 +84,55 @@ SYSROOT="${TOOL_PATH}/${ARCH_PREFIX}-${COMPVER}/${ARCH_PREFIX}/sysroot"
 SYSTEM="${TOOL_PATH}/${ARCH_PREFIX}-${COMPVER}/${ARCH_PREFIX}/sysroot/usr/include"
 
 COMPILER_OPT=""
-COMPILER_OPT+=" -O1"
+COMPILER_OPT+=" -O1 -fno-inline-functions -dse"
+# -dse
+# -elim-avail-extern
+
+##! o1 (done)
+# COMPILER_OPT+=" -fschedule-insns -fschedule-insns2" ##! all
+# COMPILER_OPT+=" -fpeephole2" ##! all
+# COMPILER_OPT+=" -falign-functions -falign-jumps -falign-loops -falign-labels" ##! all
+# COMPILER_OPT+=" -finline-small-functions" ##! all
+# COMPILER_OPT+=" "-freorder-functions" ##! all
+# COMPILER_OPT+=" -foptimize-sibling-calls" ##! all
+# COMPILER_OPT+=" -fcaller-saves" ##! all
+# COMPILER_OPT+=" -fno-hoist-adjacent-loads" ##! except elfedit
+# COMPILER_OPT+=" -fcode-hoisting" ##! all
+# COMPILER_OPT+=" -fstore-merging" ##! except elfedit
+
+
+##! o1 (work)
+# COMPILER_OPT+=" -fipa-sra" ##! except elfedit
+# COMPILER_OPT+=" -fipa-ra" ##! all
+# COMPILER_OPT+=" -fipa-cp" ##! except elfedit
+# COMPILER_OPT+=" -fipa-bit-cp" ##! except elfedit
+# COMPILER_OPT+=" -fipa-icf" ##! except elfedit
+# COMPILER_OPT+=" -fipa-vrp" ##! none (if w/ ipa then all)
+# COMPILER_OPT+=" -frerun-cse-after-loop" ##! all
+# COMPILER_OPT+=" -foptimize-strlen" ##! all
+# COMPILER_OPT+=" -fthread-jumps" ##! except elfedit
+# COMPILER_OPT+=" -fcrossjumping" ##! all
+# COMPILER_OPT+=" -fcse-follow-jumps -fcse-skip-blocks" ##! all (-fcse-skip-blocks: none)
+# COMPILER_OPT+=" -fexpensive-optimizations" ##! all
+# COMPILER_OPT+=" -fgcse -fgcse-lm" ##! all (-fgcse-lm: none)
+# COMPILER_OPT+=" -fisolate-erroneous-paths-dereference" ##! except elfedit
+# COMPILER_OPT+=" -flra-remat" ##! except elfedit
+# COMPILER_OPT+=" -fpartial-inlining" ##! except elfedit
+# COMPILER_OPT+=" -freorder-blocks-algorithm=stc" ##! all
+# COMPILER_OPT+=" -freorder-blocks-and-partition" ##! none
+# COMPILER_OPT+=" -ftree-switch-conversion" ##! except elfedit
+# COMPILER_OPT+=" -fstrict-aliasing" ##! except elfedit
+# COMPILER_OPT+=" -ftree-pre" ##! all
+# COMPILER_OPT+=" -ftree-vrp" ##! all
+
+##! none
+# COMPILER_OPT+=" -fsched-interblock" ##! none (-fschedule-insns on, also none)
+# COMPILER_OPT+=" -fsched-spec" ##! none all arch (-fschedule-insns on, also none)
+# COMPILER_OPT+=" -findirect-inlining" ##! none
+# COMPILER_OPT+=" -fdevirtualize -fdevirtualize-speculatively" ##! none
+# COMPILER_OPT+=" -ftree-tail-merge" ##! none
+# COMPILER_OPT+=" -ftree-builtin-call-dce" ##! none (-ftree on, also none)
+
 
 if [[ $COMPILER =~ "gcc" ]]; then
     CMD=""
@@ -102,13 +150,11 @@ elif [[ $COMPILER =~ "clang" ]]; then
     CMD="--host=\"${ARCH_PREFIX}\""
 
     # ------------------- compile with CC="clang --target=" -----------------
-    # clang needs to compile with this ...
-    # if [[ $CCTARGET == "CCTARGET" ]]; then
     CMD="${CMD} CC=\"clang --target=${ARCH_PREFIX}"
     CMD="${CMD} --gcc-toolchain=${TOOL_PATH}/${ARCH_PREFIX}-${COMPVER} \""
     CMD="${CMD} CFLAGS=\" "
     CMD="${CMD} -isysroot ${SYSROOT} -isystem ${SYSTEM} -I${SYSTEM}"
-    CMD="${CMD} -foptimization-record-file=opt.txt\""
+    CMD="${CMD} -foptimization-record-file=opt.txt"
     CMD="${CMD} ${COMPILER_OPT}"
     CMD="${CMD} ${OPTIONS}\""
     CMD="${CMD} LDFLAGS=\"${OPTIONS} ${EXTRA_LDFLAGS}\""
