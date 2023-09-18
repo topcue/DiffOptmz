@@ -4,9 +4,10 @@ dep/tools
 target
 result
 
-.*o0.*/
-.*o1.*/
-
+*o0*/
+*o1*/
+*o2*/
+*o3*/
 
 llvm-project/*.tar.xz*
 llvm-project/llvm-12
